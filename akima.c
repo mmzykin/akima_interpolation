@@ -14,15 +14,15 @@
 //
 
 typedef enum error_code {
-  NO_ERROR,
-  READ_FILE_ERROR,
-  DIV_BY_ZERO,
-  INVALID_ARGUMENT,
-  NO_DATA,
-  INVALID_DATA,
-  STEP_IS_TO_SMALL,
-  MALLOC_ERROR,
-  WRITE_FILE_ERROR
+  NO_ERROR = 0,
+  READ_FILE_ERROR = 1,
+  DIV_BY_ZERO = 2,
+  INVALID_ARGUMENT = 3,
+  NO_DATA = 4,
+  INVALID_DATA = 5,
+  STEP_IS_TO_SMALL = 6,
+  MALLOC_ERROR = 7,
+  WRITE_FILE_ERROR = 8
 } error_code;
 
 error_code read_input_file(const char *const file_path, double_t **input_data,
@@ -258,8 +258,8 @@ error_code calculate_differences_between_points(
   if (differences_local == NULL) {
     return MALLOC_ERROR;
   }
-  for (uint64_t i = 0; i < differences_size_local - 1; ++i) {
-    differences_local[i] = input_data[i + 1] - input_data[i];
+  for (uint64_t i = 0, j = 0; i < differences_size_local - 1; ++i, j += 2) {
+    differences_local[i] = input_data[j + 2] - input_data[j];
     if (fabs(differences_local[i]) < MIN_STEP) {
       return STEP_IS_TO_SMALL;
     }
