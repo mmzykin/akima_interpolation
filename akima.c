@@ -249,7 +249,7 @@ error_code calculate_differences_between_points(
   if (differences_local == NULL) {
     return MALLOC_ERROR;
   }
-  for (uint64_t i = 0, j = 0; i < differences_size_local - 1; ++i, j += 2) {
+  for (uint64_t i = 0, j = 0; i < differences_size_local; ++i, j += 2) {
     differences_local[i] = input_data[j + 2] - input_data[j];
     if (fabs(differences_local[i]) < MIN_STEP) {
       return STEP_IS_TO_SMALL;
