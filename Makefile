@@ -1,6 +1,6 @@
 CUNITS = akima.c
 all: $(CUNITS)
-	gcc $(CUNITS) -lm -Wall -Wextra -Wpedantic -fsanitize=address -g -o akima
+	gcc $(CUNITS) -lm  -o akima
 clean:
-	rm akima
+	rm akima *_out
 

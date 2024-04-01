@@ -65,8 +65,8 @@ double_t *calculate_a_3(const double_t *const divided_differences,
 double_t *calculate_a_4(const double_t *const divided_differences,
                         const double_t *const dbp, const double_t *const dith,
                         uint64_t dith_size);
-uint64_t binary_search(double_t x, const double_t *const input_data,
-                       uint64_t input_data_size);
+uint64_t search(double_t x, const double_t *const input_data,
+                uint64_t input_data_size);
 double_t approximate(double_t **A_iths, const double_t *const input_data,
                      uint64_t input_data_size, double_t x);
 
@@ -87,7 +87,7 @@ extern char *optarg;
 
 int main(int argc, char **argv) {
   int opt = 0;
-  double_t *A_iths[4] = {NULL}; // A[0] = calculate_a_1(...);
+  double_t *A_iths[4] = {NULL};
 
   double_t *input_data = NULL;
   uint64_t input_data_size = 0;
@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
   double_t *approximated_data = NULL;
   char *input_file_path = NULL;
   double_t step = 1e-3;
-  while ((opt = getopt(argc, argv, "f:s::")) != -1) {
+  while ((opt = getopt(argc, argv, "f:s:")) != -1) {
     switch (opt) {
     case 'f':
       assert(read_input_file(optarg, &input_data, &input_data_size) ==
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
       input_file_path = optarg;
       break;
     case 's':
-      step = atof(optarg);
+      step = (double_t)atof(optarg);
       if (fabs(step) < MIN_STEP) {
         usage();
         exit(INVALID_ARGUMENT);
@@ -164,8 +164,8 @@ int main(int argc, char **argv) {
   }
   for (uint64_t i = 0; i < approximated_data_size - 1; i += 2) {
     approximated_data[i] = min_x;
-    assert((approximated_data[i + 1] = approximate(
-                A_iths, input_data, input_data_size, min_x)) != __DBL_MAX__);
+    approximated_data[i + 1] =
+        approximate(A_iths, input_data, input_data_size, min_x);
     min_x += step;
   }
   char out_file_path[PATH_MAX];
@@ -173,15 +173,6 @@ int main(int argc, char **argv) {
   assert(print_approximated_data_to_file(out_file_path, approximated_data,
                                          approximated_data_size) == NO_ERROR);
 
-  free(approximated_data);
-  free(input_data);
-  free(diths);
-  free(omegas);
-  free(differences_between_points);
-  free(divided_differences);
-  free(A_iths[0]);
-  free(A_iths[1]);
-  free(A_iths[3]);
   return 0;
 }
 
@@ -383,32 +374,26 @@ double_t *calculate_a_4(const double_t *const divided_differences,
   return A_4;
 }
 
-uint64_t binary_search(double_t x, const double_t *const input_data,
-                       uint64_t input_data_size) {
-  uint64_t left = 0;
-  uint64_t right = input_data_size - 2;
-  while (left <= right) {
-    uint64_t mid = (left + right) / 2;
-    if (input_data[mid] < x) {
-      left = mid + 2;
-    } else if (input_data[mid] > x) {
-      right = mid - 2;
-    } else
-      return mid;
+uint64_t search(double_t x, const double_t *const input_data,
+                uint64_t input_data_size) {
+  double_t min_delta = __DBL_MAX__;
+  uint64_t idx_left_bdr = 0;
+  for (uint64_t i = 0; i < input_data_size - 1; i += 2) {
+    if (x > input_data[i] && min_delta > x - input_data[i]) {
+      min_delta = x - input_data[i];
+      idx_left_bdr = i;
+    }
   }
-  return UINT64_MAX;
+  return idx_left_bdr;
 }
 
 double_t approximate(double_t **A_iths, const double_t *const input_data,
                      uint64_t input_data_size, double_t x) {
-  uint64_t idx = binary_search(x, input_data, input_data_size);
-  if (idx != UINT64_MAX) {
-    double_t dd = (x - input_data[2 * idx]);
-    double_t dd_2 = dd * dd;
-    return A_iths[0][idx] + A_iths[1][idx] * dd + A_iths[2][idx] * dd_2 +
-           A_iths[3][idx] * dd_2 * (x - input_data[2 * (idx + 1)]);
-  }
-  return __DBL_MAX__;
+  uint64_t idx = search(x, input_data, input_data_size);
+  double_t dd = (x - input_data[2 * idx]);
+  double_t dd_2 = dd * dd;
+  return A_iths[0][idx] + A_iths[1][idx] * dd + A_iths[2][idx] * dd_2 +
+         A_iths[3][idx] * dd_2 * (x - input_data[2 * (idx + 1)]);
 }
 error_code
 print_approximated_data_to_file(const char *const file_path,
@@ -424,6 +409,4 @@ print_approximated_data_to_file(const char *const file_path,
   fclose(out);
   return NO_ERROR;
 }
-void usage() {
-  // TODO: make manual for command line
-}
+void usage() { return; }
