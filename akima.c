@@ -1,11 +1,11 @@
 #include <assert.h>
+#include <inttypes.h>
 #include <linux/limits.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
 #define MIN_STEP 1e-9
 // TODO:
 // debug
@@ -154,9 +154,10 @@ int main(int argc, char **argv) {
               calculate_a_4(divided_differences, differences_between_points,
                             diths, diths_size)) != NULL);
 
-  double_t min_x = input_data[0];
-  double_t max_x = input_data[input_data_size - 2];
-  uint64_t approximated_data_size = (uint64_t)ceil((max_x - min_x) / step);
+  double_t min_x = input_data[2];
+  double_t max_x = input_data[input_data_size - 4];
+  uint64_t approximated_data_size =
+      2 * (uint64_t)ceil((max_x - min_x + 1) / step);
   approximated_data =
       (double_t *)malloc(approximated_data_size * sizeof(double_t));
   if (approximated_data == NULL) {
@@ -175,7 +176,7 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-
+// OK
 error_code read_input_file(const char *const file_path, double_t **input_data,
                            uint64_t *size) {
   FILE *fp = fopen(file_path, "r");
@@ -225,18 +226,46 @@ error_code read_input_file(const char *const file_path, double_t **input_data,
 
 inline double_t predict_left_border_point(double_t prev_point,
                                           double_t next_point) {
+#ifdef _DEBUG
+  double_t res = prev_point - (next_point - prev_point);
+
+  printf("X_0 = %f\n", res);
+  return res;
+#endif
+
   return prev_point - (next_point - prev_point);
 }
 inline double_t predict_left_border_result(double_t prev_result,
                                            double_t next_result) {
+#ifdef _DEBUG
+  double_t res = prev_result - (next_result - prev_result);
+
+  printf("Y_0 = %f\n", res);
+  return res;
+#endif
+
   return prev_result - (next_result - prev_result);
 }
 inline double_t predict_right_border_point(double_t prev_point,
                                            double_t next_point) {
+#ifdef _DEBUG
+  double_t res = next_point + (next_point - prev_point);
+
+  printf("X_N+1 = %f\n", res);
+  return res;
+#endif
+
   return next_point + (next_point - prev_point);
 }
 inline double_t predict_right_border_result(double_t prev_result,
                                             double_t next_result) {
+#ifdef _DEBUG
+  double_t res = next_result + (next_result - prev_result);
+
+  printf("Y_N+1 = %f\n", res);
+  return res;
+#endif
+
   return next_result + (next_result - prev_result);
 }
 
@@ -257,6 +286,14 @@ error_code calculate_differences_between_points(
   }
   *differences = differences_local;
   *differences_size = differences_size_local;
+#ifdef _DEBUG
+  for (uint64_t i = 0; i < differences_size_local; ++i) {
+    printf("x%" PRIu64 " - x%" PRIu64 " = %f\n", i + 1, i,
+           differences_local[i]);
+  }
+  return NO_ERROR;
+#endif
+
   return NO_ERROR;
 }
 
@@ -266,7 +303,7 @@ calculate_divided_differences(const double_t *const input_data,
                               const double_t *const differences_between_points,
                               uint64_t differences_between_points_size,
                               double_t **div_diffs, uint64_t *size) {
-  uint64_t size_local = differences_between_points_size;
+  uint64_t size_local = input_data_size / 2 - 1;
   double_t *div_diffs_local = (double_t *)malloc(sizeof(double_t) * size_local);
   if (div_diffs_local == NULL) {
     return MALLOC_ERROR;
@@ -277,6 +314,14 @@ calculate_divided_differences(const double_t *const input_data,
   }
   *div_diffs = div_diffs_local;
   *size = size_local;
+#ifdef _DEBUG
+  for (uint64_t i = 0; i < size_local; ++i) {
+    printf("f(x%" PRIu64 "; x%" PRIu64 ") = %f\n", i, i + 1,
+           div_diffs_local[i]);
+  }
+  return NO_ERROR;
+#endif
+
   return NO_ERROR;
 }
 error_code calculate_omegas(const double_t *const div_diffs,
@@ -287,11 +332,18 @@ error_code calculate_omegas(const double_t *const div_diffs,
   if (omegas_local == NULL) {
     return MALLOC_ERROR;
   }
-  for (uint64_t i = 0; i < size_local - 1; ++i) {
+  for (uint64_t i = 0; i < size_local; ++i) {
     omegas_local[i] = fabs(div_diffs[i] - div_diffs[i + 1]);
   }
   *omegas = omegas_local;
   *size = size_local;
+#ifdef _DEBUG
+  for (uint64_t i = 0; i < size_local; ++i) {
+    printf("\u03A9[%" PRIu64 "] = %f\n", i, i + 1, omegas_local[i]);
+  }
+  return NO_ERROR;
+#endif
+
   return NO_ERROR;
 }
 
@@ -301,7 +353,7 @@ error_code calculate_di(const double_t *const input_data,
                         uint64_t div_diffs_size, const double_t *const omegas,
                         const double_t *const dbp, double_t **diths,
                         uint64_t *diths_size) {
-  uint64_t diths_size_local = input_data_size / 2;
+  uint64_t diths_size_local = input_data_size / 2 - 2;
   double_t *diths_local =
       (double_t *)malloc(sizeof(double_t) * diths_size_local);
   if (diths_local == NULL) {
@@ -320,26 +372,36 @@ error_code calculate_di(const double_t *const input_data,
         return DIV_BY_ZERO;
     }
   }
-  // diths_local[0], diths_local[n - 1] left
   diths_local[0] = (3 * div_diffs[1] - diths_local[1]) / 2;
   diths_local[diths_size_local - 1] =
       (3 * div_diffs[div_diffs_size - 2] - diths_local[diths_size_local - 2]) /
       2;
   *diths = diths_local;
   *diths_size = diths_size_local;
+#ifdef _DEBUG
+  for (uint64_t i = 0; i < diths_size_local; ++i) {
+    printf("d[%" PRIu64 "] = %f\n", i, diths_local[i]);
+  }
+  return NO_ERROR;
+#endif
   return NO_ERROR;
 }
 
 double_t *calculate_a_1(const double_t *const input_data,
                         const uint64_t input_data_size) {
-  double_t *A_1 =
-      (double_t *)malloc((input_data_size - 1) / 2 * sizeof(double_t));
+  double_t *A_1 = (double_t *)malloc((input_data_size) / 2 * sizeof(double_t));
   if (A_1 == NULL) {
     return NULL;
   }
-  for (uint64_t i = 1, j = 0; i < (input_data_size - 1) / 2; i += 2, ++j) {
+  for (uint64_t i = 3, j = 0; i < input_data_size; i += 2, ++j) {
     A_1[j] = input_data[i];
   }
+#ifdef _DEBUG
+  for (uint64_t i = 0; i < input_data_size / 2; ++i) {
+    printf("A_1[%" PRIu64 "] = %f\n", i, A_1[i]);
+  }
+  return NO_ERROR;
+#endif
   return A_1;
 }
 inline const double_t *calculate_a_2(const double_t *const dith) {
@@ -395,6 +457,7 @@ double_t approximate(double_t **A_iths, const double_t *const input_data,
   return A_iths[0][idx] + A_iths[1][idx] * dd + A_iths[2][idx] * dd_2 +
          A_iths[3][idx] * dd_2 * (x - input_data[2 * (idx + 1)]);
 }
+
 error_code
 print_approximated_data_to_file(const char *const file_path,
                                 const double_t *const approximated_data,
