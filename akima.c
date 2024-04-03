@@ -54,17 +54,19 @@ error_code calculate_di(const double_t *const input_data,
                         const double_t *const dbp, double_t **diths,
                         uint64_t *diths_size);
 
-double_t *calculate_a_1(const double_t *const input_data,
-                        const uint64_t input_data_size);
+error_code calculate_a_1(const double_t *const input_data,
+                         const uint64_t input_data_size, double_t **A_1,
+                         uint64_t *size);
 double_t const *calculate_a_2(const double_t *const dith);
 // dbp means differences between points
-double_t *calculate_a_3(const double_t *const divided_differences,
-
-                        const double_t *const dbp, const double_t *const dith,
-                        uint64_t dith_size);
-double_t *calculate_a_4(const double_t *const divided_differences,
-                        const double_t *const dbp, const double_t *const dith,
-                        uint64_t dith_size);
+error_code calculate_a_3(const double_t *const divided_differences,
+                         const double_t *const dbp, const double_t *const dith,
+                         uint64_t dith_size, double_t **A_3,
+                         uint64_t *A_3_size);
+error_code calculate_a_4(const double_t *const divided_differences,
+                         const double_t *const dbp, const double_t *const dith,
+                         uint64_t dith_size, double_t **A_4,
+                         uint64_t *A_4_size);
 uint64_t search(double_t x, const double_t *const input_data,
                 uint64_t input_data_size);
 double_t approximate(double_t **A_iths, const double_t *const input_data,
@@ -88,7 +90,10 @@ extern char *optarg;
 int main(int argc, char **argv) {
   int opt = 0;
   double_t *A_iths[4] = {NULL};
-
+  uint64_t A_1_size = 0;
+  uint64_t A_2_size = 0;
+  uint64_t A_3_size = 0;
+  uint64_t A_4_size = 0;
   double_t *input_data = NULL;
   uint64_t input_data_size = 0;
   double_t *divided_differences = NULL;
@@ -146,13 +151,13 @@ int main(int argc, char **argv) {
                       divided_differences_size, omegas,
                       differences_between_points, &diths,
                       &diths_size) == NO_ERROR);
-  assert((A_iths[0] = calculate_a_1(input_data, input_data_size)) != NULL);
-  assert((A_iths[1] = (double_t *)calculate_a_2(diths)) != NULL);
-  A_iths[2] = calculate_a_3(divided_differences, differences_between_points,
-                            diths, diths_size);
-  assert((A_iths[3] =
-              calculate_a_4(divided_differences, differences_between_points,
-                            diths, diths_size)) != NULL);
+  assert((calculate_a_1(input_data, input_data_size, &A_iths[0], &A_1_size)) ==
+         NO_ERROR);
+  A_iths[1] = (double_t *)calculate_a_2(diths);
+  assert(calculate_a_3(divided_differences, differences_between_points, diths,
+                       diths_size, &A_iths[2], &A_2_size) == NO_ERROR);
+  assert(calculate_a_4(divided_differences, differences_between_points, diths,
+                       diths_size, &A_iths[3], &A_4_size) == NO_ERROR);
 
   double_t min_x = input_data[2];
   double_t max_x = input_data[input_data_size - 4];
@@ -387,53 +392,76 @@ error_code calculate_di(const double_t *const input_data,
   return NO_ERROR;
 }
 
-double_t *calculate_a_1(const double_t *const input_data,
-                        const uint64_t input_data_size) {
-  double_t *A_1 = (double_t *)malloc((input_data_size) / 2 * sizeof(double_t));
-  if (A_1 == NULL) {
-    return NULL;
+error_code calculate_a_1(const double_t *const input_data,
+                         const uint64_t input_data_size, double_t **A_1,
+                         uint64_t *A_1_size) {
+  uint64_t A_1_local_size = (input_data_size) / 2;
+  double_t *A_1_local = (double_t *)malloc(A_1_local_size * sizeof(double_t));
+  if (A_1_local == NULL) {
+    return MALLOC_ERROR;
   }
-  for (uint64_t i = 3, j = 0; i < input_data_size; i += 2, ++j) {
-    A_1[j] = input_data[i];
+  for (uint64_t i = 1, j = 0; i < input_data_size; i += 2, ++j) {
+    A_1_local[j] = input_data[i];
   }
+  *A_1 = A_1_local;
+  *A_1_size = A_1_local_size;
 #ifdef _DEBUG
-  for (uint64_t i = 0; i < input_data_size / 2; ++i) {
-    printf("A_1[%" PRIu64 "] = %f\n", i, A_1[i]);
+  for (uint64_t i = 0; i < A_1_local_size; ++i) {
+    printf("A_1[%" PRIu64 "] = %f\n", i, A_1_local[i]);
   }
   return NO_ERROR;
 #endif
-  return A_1;
+  return NO_ERROR;
 }
 inline const double_t *calculate_a_2(const double_t *const dith) {
   return dith;
 }
 
-double_t *calculate_a_3(const double_t *const divided_differences,
-                        const double_t *const dbp, const double_t *const dith,
-                        uint64_t dith_size) {
-  double_t *A_3 = (double_t *)malloc((dith_size - 1) * sizeof(double_t));
-  if (A_3 == NULL) {
-    return NULL;
+error_code calculate_a_3(const double_t *const divided_differences,
+                         const double_t *const dbp, const double_t *const dith,
+                         uint64_t dith_size, double_t **A_3,
+                         uint64_t *A_3_size) {
+  uint64_t A_3_local_size = (dith_size - 1);
+  double_t *A_3_local = (double_t *)malloc(A_3_local_size * sizeof(double_t));
+  if (A_3_local == NULL) {
+    return MALLOC_ERROR;
   }
   for (uint64_t i = 0; i < dith_size - 1; ++i) {
-    A_3[i] = (divided_differences[i] - dith[i]) / dbp[i];
+    A_3_local[i] = (divided_differences[i] - dith[i]) / dbp[i];
   }
-  return A_3;
+  *A_3 = A_3_local;
+  *A_3_size = A_3_local_size;
+#ifdef _DEBUG
+  for (uint64_t i = 0; i < A_3_local_size; ++i) {
+    printf("A_3[%" PRIu64 "] = %f\n", i, A_3_local[i]);
+  }
+  return NO_ERROR;
+#endif
+  return NO_ERROR;
 }
 
-double_t *calculate_a_4(const double_t *const divided_differences,
-
-                        const double_t *const dbp, const double_t *const dith,
-                        uint64_t dith_size) {
-  double_t *A_4 = (double_t *)malloc(sizeof(double_t) * (dith_size - 1));
-  if (A_4 == NULL) {
-    return NULL;
+error_code calculate_a_4(const double_t *const divided_differences,
+                         const double_t *const dbp, const double_t *const dith,
+                         uint64_t dith_size, double_t **A_4,
+                         uint64_t *A_4_size) {
+  uint64_t A_4_local_size = dith_size - 1;
+  double_t *A_4_local = (double_t *)malloc(sizeof(double_t) * (A_4_local_size));
+  if (A_4_local == NULL) {
+    return MALLOC_ERROR;
   }
   for (uint64_t i = 0; i < dith_size - 1; ++i) {
-    A_4[i] = (dith[i] - dith[i + 1] - 2 * divided_differences[i]) /
-             (dbp[i] * dbp[i]);
+    A_4_local[i] = (dith[i] - dith[i + 1] - 2 * divided_differences[i]) /
+                   (dbp[i] * dbp[i]);
   }
-  return A_4;
+#ifdef _DEBUG
+  for (uint64_t i = 0; i < A_4_local_size; ++i) {
+    printf("A_4[%" PRIu64 "] = %f\n", i, A_4_local[i]);
+  }
+  return NO_ERROR;
+#endif
+  *A_4 = A_4_local;
+  *A_4_size = A_4_local_size;
+  return NO_ERROR;
 }
 
 uint64_t search(double_t x, const double_t *const input_data,
