@@ -57,7 +57,8 @@ error_code calculate_di(const double_t *const input_data,
 error_code calculate_a_1(const double_t *const input_data,
                          const uint64_t input_data_size, double_t **A_1,
                          uint64_t *size);
-double_t const *calculate_a_2(const double_t *const dith);
+error_code calculate_a_2(const double_t *const dith, uint64_t dith_size,
+                         double **A_2, uint64_t *A_2_size);
 // dbp means differences between points
 error_code calculate_a_3(const double_t *const divided_differences,
                          const double_t *const dbp, const double_t *const dith,
@@ -153,7 +154,7 @@ int main(int argc, char **argv) {
                       &diths_size) == NO_ERROR);
   assert((calculate_a_1(input_data, input_data_size, &A_iths[0], &A_1_size)) ==
          NO_ERROR);
-  A_iths[1] = (double_t *)calculate_a_2(diths);
+  assert(calculate_a_2(diths, diths_size, &A_iths[1], &A_2_size) == NO_ERROR);
   assert(calculate_a_3(divided_differences, differences_between_points, diths,
                        diths_size, &A_iths[2], &A_2_size) == NO_ERROR);
   assert(calculate_a_4(divided_differences, differences_between_points, diths,
@@ -395,12 +396,12 @@ error_code calculate_di(const double_t *const input_data,
 error_code calculate_a_1(const double_t *const input_data,
                          const uint64_t input_data_size, double_t **A_1,
                          uint64_t *A_1_size) {
-  uint64_t A_1_local_size = (input_data_size) / 2;
+  uint64_t A_1_local_size = (input_data_size - 6) / 2;
   double_t *A_1_local = (double_t *)malloc(A_1_local_size * sizeof(double_t));
   if (A_1_local == NULL) {
     return MALLOC_ERROR;
   }
-  for (uint64_t i = 1, j = 0; i < input_data_size; i += 2, ++j) {
+  for (uint64_t i = 3, j = 0; i < input_data_size - 3; i += 2, ++j) {
     A_1_local[j] = input_data[i];
   }
   *A_1 = A_1_local;
@@ -413,8 +414,24 @@ error_code calculate_a_1(const double_t *const input_data,
 #endif
   return NO_ERROR;
 }
-inline const double_t *calculate_a_2(const double_t *const dith) {
-  return dith;
+error_code calculate_a_2(const double_t *const dith, uint64_t dith_size,
+                         double **A_2, uint64_t *A_2_size) {
+  uint64_t A_2_local_size = dith_size - 1;
+  double_t *A_2_local = (double_t *)malloc(sizeof(double_t) * A_2_local_size);
+  if (A_2_local == NULL)
+    return MALLOC_ERROR;
+  for (uint64_t i = 0; i < A_2_local_size; ++i) {
+    A_2_local[i] = dith[i];
+  }
+  *A_2 = A_2_local;
+  *A_2_size = A_2_local_size;
+#ifdef _DEBUG
+  for (uint64_t i = 0; i < A_2_local_size; ++i) {
+    printf("A_2[%" PRIu64 "] = %f\n", i, A_2_local[i]);
+  }
+  return NO_ERROR;
+#endif
+  return NO_ERROR;
 }
 
 error_code calculate_a_3(const double_t *const divided_differences,
@@ -501,3 +518,6 @@ print_approximated_data_to_file(const char *const file_path,
   return NO_ERROR;
 }
 void usage() { return; }
+// TODO:
+// переделать в A_i формулы под большее количество точек (с учетом узлов в
+// краях)
